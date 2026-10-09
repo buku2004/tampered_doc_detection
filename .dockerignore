@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+.git
+.gitignore
+*.md
+data/training_set/
+data/sample_docs/
+*.ipynb

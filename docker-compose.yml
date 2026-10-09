@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+
+  # ── FastAPI backend ──────────────────────────────────────────────────────────
+  api:
+    build: .
+    container_name: doc_intel_api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist SQLite database outside container
+      - ./database:/app/database
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  # ── Streamlit frontend ───────────────────────────────────────────────────────
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: doc_intel_ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000    # talk to api service by name
+    depends_on:
+      - api
+    restart: unless-stopped

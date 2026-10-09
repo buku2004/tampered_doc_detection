@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+data/training_set/
+*.ipynb
+database/doc_intel.db
