@@ -23,8 +23,8 @@ Upload a scanned document image → the system returns:
 Input Image (JPG/PNG)
        │
        ▼
-Preprocessor (OpenCV)
-Deskew → Denoise → Normalize
+Preprocessor (Pillow)
+RGB conversion → Resize → Denoise → Normalize
        │
        ├──────────────────────┐
        ▼                      ▼
@@ -45,6 +45,10 @@ Pixel diff map          Text + confidence
         FastAPI Response + SQLite log
 ```
 
+OpenCV is not part of the production inference path. Production image
+processing uses Pillow and NumPy. OpenCV is retained under `experiments/` for
+testing alternative computer vision features.
+
 ### What is ELA?
 
 Error Level Analysis is a forensic technique that detects JPEG re-compression artifacts. When a document is digitally tampered (text changed, photo swapped), the edited region was saved at a different compression level — ELA reveals this as a bright patch in the anomaly map.
@@ -61,7 +65,7 @@ Error Level Analysis is a forensic technique that detects JPEG re-compression ar
 | `ela_high_pct` | % pixels above threshold 50 |
 | `ela_region_std` | Std of 32×32 block means — **key feature** |
 | `noise_var` | High-frequency noise variance |
-| `edge_density` | Canny edge pixel fraction |
+| `edge_density` | High-gradient pixel fraction |
 | `texture_contrast` | Local contrast measure |
 | `texture_energy` | Texture homogeneity |
 | `color_std_r/g` | RGB channel std |
@@ -109,7 +113,7 @@ Doc_intel/
 ├── pipeline/
 │   ├── ela_analyzer.py         # Error Level Analysis
 │   ├── feature_extractor.py    # 18-feature vector builder
-│   ├── preprocessor.py         # OpenCV image cleaning
+│   ├── preprocessor.py         # Pillow image cleaning
 │   └── verifier.py             # Pipeline orchestrator
 │
 ├── database/
@@ -120,8 +124,14 @@ Doc_intel/
 │   ├── schemas.py              # Pydantic request/response models
 │   └── main.py                 # FastAPI server
 │
-└── streamlit_app/
-    └── app.py                  # Interactive demo UI
+├── streamlit_app/
+│   └── app.py                  # Interactive demo UI
+│
+└── experiments/                # Non-production experiments
+    ├── opencv_test.py          # OpenCV color conversion and Canny demo
+    ├── feature_extractor.py   # Experimental OpenCV features
+    ├── preprocessor.py        # Experimental Pillow preprocessing
+    └── ela_analyzer.py         # Experimental ELA implementation
 ```
 
 ---
@@ -166,16 +176,47 @@ verification still runs with the existing fallback when it is unavailable.
 
 ### Run locally
 
+From the project root (`C:\Users\FixTest\tampered_doc_detection` on Windows),
+install dependencies once:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Start the API in **Terminal 1**:
+
+```powershell
+cd C:\Users\FixTest\tampered_doc_detection
+.\.venv\Scripts\python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Start the Streamlit UI in **Terminal 2**:
+
+```powershell
+cd C:\Users\FixTest\tampered_doc_detection
+.\.venv\Scripts\python.exe -m streamlit run streamlit_app\app.py --server.address 127.0.0.1 --server.port 8501
+```
+
+Open the application at:
+
+- Streamlit UI: http://127.0.0.1:8501
+- FastAPI documentation: http://127.0.0.1:8000/docs
+- API health check: http://127.0.0.1:8000/health
+
+For Linux or macOS, activate the virtual environment and use:
+
 ```bash
-# Terminal 1 — start API
-uvicorn api.main:app --reload --port 8000
+source .venv/bin/activate
+uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
+# In a second terminal:
+streamlit run streamlit_app/app.py --server.address 127.0.0.1 --server.port 8501
+```
 
-# Terminal 2 — start UI
-streamlit run streamlit_app/app.py
+Press `Ctrl+C` in each terminal to stop the services. If Tesseract is installed
+in a custom Windows location, set `TESSERACT_CMD` before starting the API:
 
-# Open browser
-# API docs : http://localhost:8000/docs
-# Streamlit: http://localhost:8501
+```powershell
+$env:TESSERACT_CMD = "C:\Path\To\Tesseract-OCR\tesseract.exe"
 ```
 
 ### Run with Docker
@@ -247,7 +288,7 @@ The script:
 
 | JD Requirement | Implementation |
 |---------------|----------------|
-| Computer Vision + Image Processing | OpenCV preprocessing, ELA forensic analysis |
+| Computer Vision + Image Processing | Pillow/NumPy preprocessing, ELA forensic analysis |
 | Classical ML — Classification | sklearn Random Forest on handcrafted features |
 | Feature engineering | 18 features from ELA map + OCR + texture |
 | Model evaluation | Precision, recall, F1, confusion matrix |
@@ -257,6 +298,7 @@ The script:
 | Docker containerization | Dockerfile + docker-compose |
 | Cloud deployment | GCP Cloud Run — live public API |
 | Clean documented code | Docstrings, type hints, modular structure |
+| Experimental computer vision | OpenCV prototypes in `experiments/` |
 
 ---
 
