@@ -144,6 +144,26 @@ sudo apt install tesseract-ocr    # Ubuntu
 pip install -r requirements.txt
 ```
 
+On Windows, install the native Tesseract OCR engine separately; `pytesseract`
+only provides the Python wrapper:
+
+```powershell
+winget install UB-Mannheim.TesseractOCR
+```
+
+Restart the terminal after installation. The application automatically checks
+`PATH` and the standard `Program Files` locations. For a custom installation,
+set the executable explicitly:
+
+```powershell
+$env:TESSERACT_CMD = "C:\Path\To\Tesseract-OCR\tesseract.exe"
+```
+
+The Python wrapper is small. The native Windows installation typically uses
+roughly 200–250 MB, so it does not significantly increase this project's
+storage requirements. Tesseract is only needed for extracted text; document
+verification still runs with the existing fallback when it is unavailable.
+
 ### Run locally
 
 ```bash

@@ -4,6 +4,7 @@ config.py
 Single source of truth for all paths and settings.
 """
 
+import os
 from pathlib import Path
 
 # ── Project root ──────────────────────────────────────────────────────────────
@@ -36,3 +37,7 @@ CONFIDENCE_THRESHOLD = 0.65
 # ── Supported upload formats ──────────────────────────────────────────────────
 VALID_EXTENSIONS  = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"}
 MAX_FILE_SIZE_MB  = 10
+
+# ── Tesseract OCR ───────────────────────────────────────────────────────────
+# Set TESSERACT_CMD when Tesseract is installed outside the standard locations.
+TESSERACT_CMD = os.getenv("TESSERACT_CMD")

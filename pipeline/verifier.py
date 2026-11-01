@@ -16,7 +16,10 @@ This is the only file the FastAPI route needs to call.
 """
 
 import io
+import logging
+import os
 import pickle
+import shutil
 import time
 import uuid
 import numpy as np
@@ -28,10 +31,13 @@ from app.config import (
     CLASSIFIER_PATH,
     LABEL_NAMES,
     CONFIDENCE_THRESHOLD,
+    TESSERACT_CMD,
 )
 from pipeline.preprocessor      import preprocess
 from pipeline.ela_analyzer       import compute_ela_from_pil
 from pipeline.feature_extractor  import extract_features
+
+logger = logging.getLogger(__name__)
 
 # ── Load model once at import time ───────────────────────────────────────────
 # This runs when the FastAPI server starts — not on every request
@@ -124,12 +130,19 @@ def verify_document(file_bytes: bytes) -> VerificationResult:
 # ── OCR helper ────────────────────────────────────────────────────────────────
 def _run_ocr(pil_image: Image.Image) -> tuple[str, float]:
     """
-    Try to run Tesseract OCR. Returns (text, confidence).
-    If Tesseract is not installed, returns ("", 0.5) gracefully
-    so the pipeline still works without OCR.
+    Run Tesseract OCR when the native engine is available.
+
+    The Python ``pytesseract`` package is only a wrapper; this function also
+    discovers the native executable on Windows. OCR remains optional so image
+    verification can continue when the engine is not installed.
     """
     try:
         import pytesseract
+
+        tesseract_cmd = _find_tesseract()
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+
         data = pytesseract.image_to_data(
             pil_image,
             output_type=pytesseract.Output.DICT,
@@ -145,6 +158,38 @@ def _run_ocr(pil_image: Image.Image) -> tuple[str, float]:
         mean_conf = float(np.mean(confidences)) / 100.0 if confidences else 0.5
         return text, mean_conf
 
-    except Exception:
-        # Tesseract not installed or failed — continue without OCR
+    except ImportError:
+        logger.warning(
+            "The pytesseract package is unavailable; continuing without OCR."
+        )
         return "", 0.5
+    except pytesseract.TesseractNotFoundError:
+        logger.warning(
+            "Tesseract OCR is unavailable; continuing without extracted text. "
+            "Install Tesseract or set TESSERACT_CMD to tesseract.exe."
+        )
+        return "", 0.5
+    except (OSError, ValueError) as exc:
+        logger.warning("Tesseract OCR failed; continuing without OCR: %s", exc)
+        return "", 0.5
+
+
+def _find_tesseract() -> str | None:
+    """Return a usable Tesseract executable path, if one can be found."""
+    if TESSERACT_CMD:
+        return TESSERACT_CMD
+
+    discovered = shutil.which("tesseract")
+    if discovered:
+        return discovered
+
+    if os.name == "nt":
+        for candidate in (
+            Path(os.environ.get("ProgramFiles", "")) / "Tesseract-OCR" / "tesseract.exe",
+            Path(os.environ.get("ProgramFiles(x86)", "")) / "Tesseract-OCR" / "tesseract.exe",
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Tesseract-OCR" / "tesseract.exe",
+        ):
+            if candidate.is_file():
+                return str(candidate)
+
+    return None
