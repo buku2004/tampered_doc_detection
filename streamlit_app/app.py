@@ -7,7 +7,7 @@ import requests
 import streamlit as st
 
 
-DEFAULT_API_URL = "http://localhost:8000"
+DEFAULT_API_URL = "https://doc-intelligence-k1cm.onrender.com"
 API_URL = os.getenv("API_URL", DEFAULT_API_URL).rstrip("/")
 REQUEST_TIMEOUT_SECONDS = 60
 
