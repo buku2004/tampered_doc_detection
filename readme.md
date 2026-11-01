@@ -284,6 +284,27 @@ The script:
 3. Deploys to Cloud Run (asia-south1 region)
 4. Prints the live URL
 
+### Streamlit Community Cloud
+
+The repository is published at
+`https://github.com/buku2004/tampered_doc_detection`, with the application on
+the `master` branch. In Streamlit Community Cloud, create a new app with:
+
+- **Repository:** `buku2004/tampered_doc_detection`
+- **Branch:** `master`
+- **Main file path:** `streamlit_app/app.py`
+
+The Streamlit page is a frontend and calls the FastAPI service. Streamlit
+Community Cloud does not run the FastAPI service automatically, so deploy the
+API separately (for example, on Cloud Run) and add this app secret:
+
+```toml
+API_URL = "https://your-api-service.example.com"
+```
+
+The app reads `API_URL` from its environment and uses
+`http://localhost:8000` only for local development.
+
 ## Skills Demonstrated
 
 | JD Requirement | Implementation |
